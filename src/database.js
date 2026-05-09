@@ -48,4 +48,14 @@ function countProjects() {
   return db.prepare(`SELECT COUNT(*) as count FROM projects`).get().count;
 }
 
-module.exports = { addProject, getProject, updateProject, deleteProject, getProjects, countProjects };
+function searchProjects(query) {
+  const like = `%${query}%`;
+  return db.prepare(
+    `SELECT * FROM projects
+     WHERE name LIKE ? OR kingdom LIKE ?
+     ORDER BY created_at DESC
+     LIMIT 25`
+  ).all(like, like);
+}
+
+module.exports = { addProject, getProject, updateProject, deleteProject, getProjects, countProjects, searchProjects };

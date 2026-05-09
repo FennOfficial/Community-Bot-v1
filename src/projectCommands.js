@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('./database');
 
 const MAIN_SERVER_ID = '1485393766411141274';
@@ -98,8 +98,6 @@ const projectList = {
       }
       return embed;
     }
-
-    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
     function buildRow(p) {
       return new ActionRowBuilder().addComponents(
@@ -245,4 +243,96 @@ const deleteProject = {
   }
 };
 
-module.exports = { projectRegistration, projectList, projectEdit, deleteProject };
+const projectSearch = {
+  command: new SlashCommandBuilder()
+    .setName('project-search')
+    .setDescription('Search projects by name or kingdom')
+    .addStringOption(opt =>
+      opt.setName('query')
+        .setDescription('Keyword to search (project name or kingdom number)')
+        .setRequired(true)
+    ),
+
+  async execute(interaction) {
+    if (!isMainServer(interaction)) {
+      return interaction.reply({ content: 'This command is only available in the main server.', ephemeral: true });
+    }
+
+    const query = interaction.options.getString('query').trim();
+    const results = db.searchProjects(query);
+
+    if (results.length === 0) {
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xEB459E)
+            .setTitle('No Results Found')
+            .setDescription(`No projects matched **${query}**.`)
+        ],
+        ephemeral: true,
+      });
+    }
+
+    const PAGE_SIZE = 5;
+    const totalPages = Math.ceil(results.length / PAGE_SIZE);
+    let page = 0;
+
+    function buildEmbed(p) {
+      const slice = results.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE);
+      const embed = new EmbedBuilder()
+        .setColor(0xEB459E)
+        .setTitle(`Search Results for "${query}"`)
+        .setFooter({ text: `${results.length} result(s) — Page ${p + 1} of ${totalPages}` });
+
+      for (const proj of slice) {
+        embed.addFields({
+          name: `🔍 ${proj.name}`,
+          value: `**Kingdom:** ${proj.kingdom}\n**Date:** ${proj.date}\n**Link:** ${proj.link}\n**Owner:** ${proj.owner_tag}`,
+        });
+      }
+      return embed;
+    }
+
+    function buildRow(p) {
+      return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('search_prev')
+          .setLabel('◀ Prev')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(p === 0),
+        new ButtonBuilder()
+          .setCustomId('search_next')
+          .setLabel('Next ▶')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(p >= totalPages - 1)
+      );
+    }
+
+    const components = totalPages > 1 ? [buildRow(page)] : [];
+
+    const msg = await interaction.reply({
+      embeds: [buildEmbed(page)],
+      components,
+      fetchReply: true,
+    });
+
+    if (totalPages <= 1) return;
+
+    const collector = msg.createMessageComponentCollector({ time: 120_000 });
+
+    collector.on('collect', async (btn) => {
+      if (btn.user.id !== interaction.user.id) {
+        return btn.reply({ content: 'Only the command user can navigate pages.', ephemeral: true });
+      }
+      if (btn.customId === 'search_prev' && page > 0) page--;
+      if (btn.customId === 'search_next' && page < totalPages - 1) page++;
+      await btn.update({ embeds: [buildEmbed(page)], components: [buildRow(page)] });
+    });
+
+    collector.on('end', () => {
+      msg.edit({ components: [] }).catch(() => {});
+    });
+  }
+};
+
+module.exports = { projectRegistration, projectList, projectEdit, deleteProject, projectSearch };
