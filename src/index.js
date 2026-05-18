@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, Collection, ActivityType } = require('discord.js');
 const { command: kingdomPingCmd, execute: kingdomPingExec, registerKingdomPing } = require('./kingdomPing');
 const { projectRegistration, projectList, projectEdit, deleteProject, projectSearch } = require('./projectCommands');
 
@@ -41,11 +41,27 @@ async function registerCommands() {
   }
 }
 
+function updatePresence() {
+  const count = client.guilds.cache.size;
+  client.user.setPresence({
+    status: 'idle',
+    activities: [{
+      name: `over ${count} server${count !== 1 ? 's' : ''}`,
+      type: ActivityType.Watching,
+    }],
+  });
+}
+
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerCommands();
   registerKingdomPing(client);
+  updatePresence();
+  console.log(`Presence set: Watching over ${client.guilds.cache.size} servers`);
 });
+
+client.on('guildCreate', () => updatePresence());
+client.on('guildDelete', () => updatePresence());
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
