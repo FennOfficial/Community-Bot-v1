@@ -1,33 +1,51 @@
-const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ChannelType } = require('discord.js');
 
 const pendingPings = new Map();
 
+function extractKingdomNumber(message) {
+  const parts = [
+    message.content || '',
+    message.embeds?.[0]?.title || '',
+    message.embeds?.[0]?.description || '',
+    message.embeds?.[0]?.footer?.text || '',
+  ];
+
+  for (const text of parts) {
+    const match = text.match(/Kingdom\s*(\d+)/i);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 function registerKingdomPing(client) {
   client.on('messageCreate', async (message) => {
-    if (!message.author.bot) return;
+    const isBot = message.author?.bot;
+    const isWebhook = !!message.webhookId;
+
+    if (!isBot && !isWebhook) return;
+
+    const kingdomNumber = extractKingdomNumber(message);
+
+    if (!kingdomNumber) return;
+
+    console.log(`[KingdomPing] Detected Kingdom ${kingdomNumber} announcement in guild ${message.guildId}`);
 
     for (const [key, pingData] of pendingPings.entries()) {
       const { kingdomId, targetChannelId, customMessage, guildId } = pingData;
 
       if (message.guildId !== guildId) continue;
-
-      const embedDescription = message.embeds?.[0]?.description || '';
-      const embedTitle = message.embeds?.[0]?.title || '';
-      const fullText = embedTitle + ' ' + embedDescription;
-
-      const match = fullText.match(/Kingdom\s+(\d+)/i);
-      if (!match) continue;
-
-      const announcedKingdom = match[1];
-      if (announcedKingdom !== kingdomId) continue;
+      if (kingdomNumber !== kingdomId) continue;
 
       try {
         const targetChannel = await client.channels.fetch(targetChannelId).catch(() => null);
         if (targetChannel) {
           await targetChannel.send(customMessage);
+          console.log(`[KingdomPing] Sent ping for Kingdom ${kingdomId} to channel ${targetChannelId}`);
+        } else {
+          console.warn(`[KingdomPing] Could not find target channel ${targetChannelId}`);
         }
       } catch (err) {
-        console.error('Failed to send Kingdom Ping:', err);
+        console.error('[KingdomPing] Failed to send ping:', err);
       }
 
       pendingPings.delete(key);
