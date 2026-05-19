@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits, REST, Routes, Collection, ActivityType } = require('discord.js');
 const { command: kingdomPingCmd, execute: kingdomPingExec, registerKingdomPing } = require('./kingdomPing');
 const { projectRegistration, projectList, projectEdit, deleteProject, projectSearch } = require('./projectCommands');
+const { registerAutoAnnounce } = require('./autoAnnounce');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
@@ -56,6 +57,7 @@ client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerCommands();
   registerKingdomPing(client);
+  registerAutoAnnounce(client);
   updatePresence();
   console.log(`Presence set: Watching over ${client.guilds.cache.size} servers`);
 });
