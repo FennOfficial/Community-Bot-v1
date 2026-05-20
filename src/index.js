@@ -3,6 +3,12 @@ const { command: kingdomPingCmd, execute: kingdomPingExec, registerKingdomPing }
 const { projectRegistration, projectList, projectEdit, deleteProject, projectSearch } = require('./projectCommands');
 const { registerAutoAnnounce } = require('./autoAnnounce');
 const { command: statsCmd, execute: statsExec } = require('./statsCommand');
+const http = require('http');
+
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Kingdom Bot is running.');
+}).listen(5000, '0.0.0.0');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
