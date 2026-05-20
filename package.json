@@ -11,7 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
     "better-sqlite3": "^12.9.0",
-    "discord.js": "^14.26.4"
+    "discord.js": "^14.26.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "vite": "^8.0.13"
   }
 }
