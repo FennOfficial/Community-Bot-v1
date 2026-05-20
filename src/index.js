@@ -3,6 +3,9 @@ const { command: kingdomPingCmd, execute: kingdomPingExec, registerKingdomPing }
 const { projectRegistration, projectList, projectEdit, deleteProject, projectSearch } = require('./projectCommands');
 const { registerAutoAnnounce } = require('./autoAnnounce');
 const { command: statsCmd, execute: statsExec } = require('./statsCommand');
+const { command: helpCmd, execute: helpExec } = require('./helpCommand');
+const { command: kvkCmd, execute: kvkExec } = require('./kvkCommand');
+const { command: eventsCmd, execute: eventsExec } = require('./eventsCommand');
 const http = require('http');
 
 http.createServer((req, res) => {
@@ -31,6 +34,9 @@ const allCommands = [
   { data: deleteProject.command, execute: deleteProject.execute },
   { data: projectSearch.command, execute: projectSearch.execute },
   { data: statsCmd, execute: statsExec },
+  { data: helpCmd, execute: helpExec },
+  { data: kvkCmd, execute: kvkExec },
+  { data: eventsCmd, execute: eventsExec },
 ];
 
 for (const cmd of allCommands) {
@@ -39,10 +45,13 @@ for (const cmd of allCommands) {
 
 async function registerCommands() {
   const rest = new REST().setToken(TOKEN);
-  const body = allCommands.map(c => c.data.toJSON());
+  const newCmds = allCommands.map(c => c.data.toJSON());
 
   try {
     console.log('Registering slash commands globally...');
+    const existing = await rest.get(Routes.applicationCommands(CLIENT_ID));
+    const entryPoints = existing.filter(c => c.type === 4);
+    const body = [...newCmds, ...entryPoints];
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body });
     console.log('Slash commands registered successfully.');
   } catch (err) {

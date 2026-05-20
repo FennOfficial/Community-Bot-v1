@@ -14,6 +14,26 @@ db.exec(`
     owner_tag TEXT NOT NULL,
     created_at INTEGER DEFAULT (unixepoch())
   );
+
+  CREATE TABLE IF NOT EXISTS kvk_season (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    name TEXT NOT NULL DEFAULT 'KvK Season 1'
+  );
+
+  INSERT OR IGNORE INTO kvk_season (id, name) VALUES (1, 'KvK Season 1');
+
+  CREATE TABLE IF NOT EXISTS kvk_players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    governor TEXT UNIQUE NOT NULL,
+    alliance TEXT NOT NULL,
+    kingdom INTEGER NOT NULL,
+    kill_points INTEGER NOT NULL DEFAULT 0,
+    t4_kills INTEGER NOT NULL DEFAULT 0,
+    t5_kills INTEGER NOT NULL DEFAULT 0,
+    deaths INTEGER NOT NULL DEFAULT 0,
+    registered_by TEXT NOT NULL,
+    updated_at INTEGER DEFAULT (unixepoch())
+  );
 `);
 
 function addProject({ name, kingdom, date, link, owner_id, owner_tag }) {
@@ -58,4 +78,39 @@ function searchProjects(query) {
   ).all(like, like);
 }
 
-module.exports = { addProject, getProject, updateProject, deleteProject, getProjects, countProjects, searchProjects };
+function addKvkPlayer({ governor, alliance, kingdom, registered_by }) {
+  return db.prepare(
+    `INSERT INTO kvk_players (governor, alliance, kingdom, registered_by) VALUES (?, ?, ?, ?)`
+  ).run(governor, alliance, kingdom, registered_by);
+}
+
+function getKvkPlayer(governor) {
+  return db.prepare(`SELECT * FROM kvk_players WHERE governor = ? COLLATE NOCASE`).get(governor);
+}
+
+function updateKvkScore(governor, { kill_points, t4_kills, t5_kills, deaths }) {
+  db.prepare(
+    `UPDATE kvk_players SET kill_points = ?, t4_kills = ?, t5_kills = ?, deaths = ?, updated_at = unixepoch()
+     WHERE governor = ? COLLATE NOCASE`
+  ).run(kill_points, t4_kills, t5_kills, deaths, governor);
+}
+
+function getKvkLeaderboard() {
+  return db.prepare(
+    `SELECT * FROM kvk_players ORDER BY kill_points DESC LIMIT 10`
+  ).all();
+}
+
+function getCurrentKvkSeason() {
+  return db.prepare(`SELECT name FROM kvk_season WHERE id = 1`).get()?.name ?? 'KvK Season 1';
+}
+
+function resetKvkSeason(seasonName) {
+  db.prepare(`UPDATE kvk_season SET name = ? WHERE id = 1`).run(seasonName);
+  db.prepare(`DELETE FROM kvk_players`).run();
+}
+
+module.exports = {
+  addProject, getProject, updateProject, deleteProject, getProjects, countProjects, searchProjects,
+  addKvkPlayer, getKvkPlayer, updateKvkScore, getKvkLeaderboard, getCurrentKvkSeason, resetKvkSeason,
+};
