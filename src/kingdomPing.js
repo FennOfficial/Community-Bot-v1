@@ -1,4 +1,6 @@
-const { SlashCommandBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+
+const SOURCE_CHANNEL_ID = '1492068518236258445';
 
 const pendingPings = new Map();
 
@@ -19,21 +21,20 @@ function extractKingdomNumber(message) {
 
 function registerKingdomPing(client) {
   client.on('messageCreate', async (message) => {
+    if (message.channelId !== SOURCE_CHANNEL_ID) return;
+
     const isBot = message.author?.bot;
     const isWebhook = !!message.webhookId;
-
     if (!isBot && !isWebhook) return;
 
     const kingdomNumber = extractKingdomNumber(message);
-
     if (!kingdomNumber) return;
 
-    console.log(`[KingdomPing] Detected Kingdom ${kingdomNumber} announcement in guild ${message.guildId}`);
+    console.log(`[KingdomPing] Kingdom ${kingdomNumber} detected — checking pending pings...`);
 
     for (const [key, pingData] of pendingPings.entries()) {
-      const { kingdomId, targetChannelId, customMessage, guildId } = pingData;
+      const { kingdomId, targetChannelId, customMessage } = pingData;
 
-      if (message.guildId !== guildId) continue;
       if (kingdomNumber !== kingdomId) continue;
 
       try {
@@ -55,7 +56,7 @@ function registerKingdomPing(client) {
 
 const command = new SlashCommandBuilder()
   .setName('kingdom-ping')
-  .setDescription('Wait for a Kingdom announcement and send a custom message')
+  .setDescription('Wait for a Kingdom announcement and send a custom message (Admin only)')
   .addChannelOption(opt =>
     opt.setName('channel')
       .setDescription('Channel to send the message in')
@@ -71,7 +72,8 @@ const command = new SlashCommandBuilder()
     opt.setName('message')
       .setDescription('The message to send when the Kingdom opens')
       .setRequired(true)
-  );
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function execute(interaction) {
   const channel = interaction.options.getChannel('channel');
@@ -88,7 +90,6 @@ async function execute(interaction) {
     kingdomId,
     targetChannelId: channel.id,
     customMessage,
-    guildId: interaction.guildId,
   });
 
   await interaction.reply({
