@@ -6,14 +6,31 @@ const TARGET_CHANNEL_ID = '1492091669288452238';
 function extractKingdomNumber(message) {
   const parts = [
     message.content || '',
-    message.embeds?.[0]?.title || '',
-    message.embeds?.[0]?.description || '',
-    message.embeds?.[0]?.footer?.text || '',
+  ];
+
+  for (const embed of (message.embeds || [])) {
+    parts.push(
+      embed.title || '',
+      embed.description || '',
+      embed.footer?.text || '',
+      embed.author?.name || '',
+    );
+    for (const field of (embed.fields || [])) {
+      parts.push(field.name || '', field.value || '');
+    }
+  }
+
+  const openingPatterns = [
+    /Kingdom\s*(\d+)\s+is\s+now\s+open/i,
+    /Kingdom\s*(\d+)\s+(?:has\s+)?opened/i,
+    /Kingdom\s*(\d+)/i,
   ];
 
   for (const text of parts) {
-    const match = text.match(/Kingdom\s*(\d+)/i);
-    if (match) return match[1];
+    for (const pattern of openingPatterns) {
+      const match = text.match(pattern);
+      if (match) return match[1];
+    }
   }
   return null;
 }
