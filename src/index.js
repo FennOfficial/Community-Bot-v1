@@ -7,11 +7,19 @@ const { command: helpCmd, execute: helpExec } = require('./helpCommand');
 const { command: kvkCmd, execute: kvkExec } = require('./kvkCommand');
 const { command: eventsCmd, execute: eventsExec } = require('./eventsCommand');
 const http = require('http');
+const https = require('https');
 
 http.createServer((req, res) => {
   res.writeHead(200);
   res.end('Kingdom Bot is running.');
 }).listen(5000, '0.0.0.0');
+
+const SELF_URL = 'https://community-bot-v-1--mrversius.replit.app';
+setInterval(() => {
+  https.get(SELF_URL, (res) => {
+    res.resume();
+  }).on('error', () => {});
+}, 4 * 60 * 1000);
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
