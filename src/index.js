@@ -4,7 +4,6 @@ const { projectRegistration, projectList, projectEdit, deleteProject, projectSea
 const { registerAutoAnnounce } = require('./autoAnnounce');
 const { command: statsCmd, execute: statsExec } = require('./statsCommand');
 const { command: helpCmd, execute: helpExec } = require('./helpCommand');
-const { command: kvkCmd, execute: kvkExec } = require('./kvkCommand');
 const { command: eventsCmd, execute: eventsExec } = require('./eventsCommand');
 const http = require('http');
 const https = require('https');
@@ -43,7 +42,6 @@ const allCommands = [
   { data: projectSearch.command, execute: projectSearch.execute },
   { data: statsCmd, execute: statsExec },
   { data: helpCmd, execute: helpExec },
-  { data: kvkCmd, execute: kvkExec },
   { data: eventsCmd, execute: eventsExec },
 ];
 

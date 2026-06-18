@@ -17,15 +17,6 @@ async function execute(interaction) {
         ].join('\n'),
       },
       {
-        name: '⚔️ KvK Tracker',
-        value: [
-          '`/kvk register` — Register yourself or another player for the current KvK season.',
-          '`/kvk score` — Update kill points, deaths, and T4/T5 kill counts for a player.',
-          '`/kvk leaderboard` — View the top 10 players ranked by kill points this season.',
-          '`/kvk reset` — **Admin only.** Reset all KvK scores for a new season.',
-        ].join('\n'),
-      },
-      {
         name: '📅 Events',
         value: [
           '`/events` — Show upcoming Rise of Kingdoms global events with countdowns.',
