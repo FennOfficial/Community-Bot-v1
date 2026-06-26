@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('./database');
+const { getWatches } = require('./kingdomWatchlist');
 
 const SOURCE_CHANNEL_ID = '1492068518236258445';
 
@@ -124,48 +125,59 @@ async function handleAutoAlert(message) {
 
   console.log(`[AutoAlert] Kingdom ${kdNumber} detected in source channel.`);
 
-  const allGuilds = db.getAllAutoAlertConfigs();
-
-  for (const config of allGuilds) {
-    if (!config.enabled) continue;
-
-    const alertKey = `${config.guild_id}-${config.target_channel_id}`;
+  async function firePings(channelId, roleId, label) {
+    const alertKey = channelId;
     if (activePings.has(alertKey)) {
-      console.log(`[AutoAlert] Skipping guild ${config.guild_id} — alert already running.`);
-      continue;
+      console.log(`[AutoAlert] Skipping ${label} — alert already running in channel ${channelId}.`);
+      return;
     }
 
+    const channel = await message.client.channels.fetch(channelId).catch(() => null);
+    if (!channel) return;
+
+    const mention = roleId ? `<@&${roleId}>` : '@everyone';
+    const pingMessage = `${mention} **(${kdNumber}) Kingdom Has Now Open** 🏰⚔️`;
+
+    let count = 0;
+    const scheduleNext = () => {
+      const timeout = setTimeout(async () => {
+        if (!activePings.has(alertKey)) return;
+        try {
+          await channel.send(pingMessage);
+        } catch (err) {
+          console.error(`[AutoAlert] Failed ping ${count + 1} for ${label}:`, err);
+        }
+        count++;
+        if (count < 5) {
+          scheduleNext();
+        } else {
+          activePings.delete(alertKey);
+          console.log(`[AutoAlert] Finished 5 pings for KD ${kdNumber} (${label})`);
+        }
+      }, count === 0 ? 0 : 12000);
+
+      activePings.set(alertKey, timeout);
+    };
+
+    scheduleNext();
+  }
+
+  const allGuilds = db.getAllAutoAlertConfigs();
+  for (const config of allGuilds) {
+    if (!config.enabled) continue;
     try {
-      const channel = await message.client.channels.fetch(config.target_channel_id).catch(() => null);
-      if (!channel) continue;
-
-      const mention = config.role_id ? `<@&${config.role_id}>` : '@everyone';
-      const pingMessage = `${mention} **(${kdNumber}) Kingdom Has Now Open** 🏰⚔️`;
-
-      let count = 0;
-      const scheduleNext = () => {
-        const timeout = setTimeout(async () => {
-          if (!activePings.has(alertKey)) return;
-          try {
-            await channel.send(pingMessage);
-          } catch (err) {
-            console.error(`[AutoAlert] Failed ping ${count + 1} for guild ${config.guild_id}:`, err);
-          }
-          count++;
-          if (count < 5) {
-            scheduleNext();
-          } else {
-            activePings.delete(alertKey);
-            console.log(`[AutoAlert] Finished 5 pings for KD ${kdNumber} in guild ${config.guild_id}`);
-          }
-        }, count === 0 ? 0 : 12000);
-
-        activePings.set(alertKey, timeout);
-      };
-
-      scheduleNext();
+      await firePings(config.target_channel_id, config.role_id, `guild-auto:${config.guild_id}`);
     } catch (err) {
       console.error(`[AutoAlert] Error for guild ${config.guild_id}:`, err);
+    }
+  }
+
+  const watches = getWatches(kdNumber);
+  for (const watch of watches) {
+    try {
+      await firePings(watch.channelId, watch.roleId, `watch:guild-${watch.guildId}-kd${kdNumber}`);
+    } catch (err) {
+      console.error(`[AutoAlert] Error for watch entry guild ${watch.guildId} kd ${kdNumber}:`, err);
     }
   }
 }
