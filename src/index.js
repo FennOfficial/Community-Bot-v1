@@ -1,65 +1,61 @@
 const { Client, GatewayIntentBits, REST, Routes, Collection, ActivityType } = require('discord.js');
-const { command: kingdomPingCmd, execute: kingdomPingExec, registerKingdomPing } = require('./kingdomPing');
-const { projectRegistration, projectList, projectEdit, deleteProject, projectSearch } = require('./projectCommands');
-const { registerAutoAnnounce } = require('./autoAnnounce');
-const { command: statsCmd, execute: statsExec } = require('./statsCommand');
-const { command: helpCmd, execute: helpExec } = require('./helpCommand');
-const { command: eventsCmd, execute: eventsExec } = require('./eventsCommand');
 const http = require('http');
 const https = require('https');
 
+const { command: verifyCmd, execute: verifyExec, handleVerifyButton, handleVerifyAccept, handleVerifyDecline, handleImageSubmission } = require('./verificationCommand');
+const { command: ticketCmd, execute: ticketExec, handleTicketOpen, handleTicketCloseBtn } = require('./ticketCommand');
+const { command: welcomeCmd, execute: welcomeExec, handleMemberJoin: welcomeJoin } = require('./welcomeCommand');
+const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJoin } = require('./autoroleCommand');
+const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require('./giveawayCommand');
+const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
+
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
+
 http.createServer((req, res) => {
   res.writeHead(200);
-  res.end('Kingdom Bot is running.');
+  res.end('Ascendant Guardians is running.');
 }).listen(5000, '0.0.0.0');
 
 const SELF_URL = 'https://community-bot-v-1--mrversius.replit.app';
 setInterval(() => {
-  https.get(SELF_URL, (res) => {
-    res.resume();
-  }).on('error', () => {});
+  https.get(SELF_URL, (res) => { res.resume(); }).on('error', () => {});
 }, 4 * 60 * 1000);
-
-const TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
-  ]
+    GatewayIntentBits.GuildMessageReactions,
+  ],
 });
 
-const commands = new Collection();
-
 const allCommands = [
-  { data: kingdomPingCmd, execute: kingdomPingExec },
-  { data: projectRegistration.command, execute: projectRegistration.execute },
-  { data: projectList.command, execute: projectList.execute },
-  { data: projectEdit.command, execute: projectEdit.execute },
-  { data: deleteProject.command, execute: deleteProject.execute },
-  { data: projectSearch.command, execute: projectSearch.execute },
-  { data: statsCmd, execute: statsExec },
-  { data: helpCmd, execute: helpExec },
-  { data: eventsCmd, execute: eventsExec },
+  { data: verifyCmd, execute: verifyExec },
+  { data: ticketCmd, execute: ticketExec },
+  { data: welcomeCmd, execute: welcomeExec },
+  { data: autoroleCmd, execute: autoroleExec },
+  { data: giveawayCmd, execute: giveawayExec },
+  { data: pointsCmd, execute: executePoints },
+  { data: storeCommand, execute: executeStore },
 ];
 
+const commands = new Collection();
 for (const cmd of allCommands) {
   commands.set(cmd.data.name, cmd);
 }
 
 async function registerCommands() {
   const rest = new REST().setToken(TOKEN);
-  const newCmds = allCommands.map(c => c.data.toJSON());
-
+  const body = allCommands.map(c => c.data.toJSON());
   try {
-    console.log('Registering slash commands globally...');
+    console.log('Registering slash commands...');
     const existing = await rest.get(Routes.applicationCommands(CLIENT_ID));
     const entryPoints = existing.filter(c => c.type === 4);
-    const body = [...newCmds, ...entryPoints];
-    await rest.put(Routes.applicationCommands(CLIENT_ID), { body });
-    console.log('Slash commands registered successfully.');
+    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [...body, ...entryPoints] });
+    console.log('Slash commands registered.');
   } catch (err) {
     console.error('Failed to register commands:', err);
   }
@@ -68,41 +64,59 @@ async function registerCommands() {
 function updatePresence() {
   const count = client.guilds.cache.size;
   client.user.setPresence({
-    status: 'idle',
-    activities: [{
-      name: `over ${count} server${count !== 1 ? 's' : ''}`,
-      type: ActivityType.Watching,
-    }],
+    status: 'online',
+    activities: [{ name: `${count} server${count !== 1 ? 's' : ''} | /ticket`, type: ActivityType.Watching }],
   });
 }
 
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerCommands();
-  registerKingdomPing(client);
-  registerAutoAnnounce(client);
   updatePresence();
-  console.log(`Presence set: Watching over ${client.guilds.cache.size} servers`);
+  setInterval(() => checkGiveaways(client), 30 * 1000);
+  console.log('Ascendant Guardians is ready.');
 });
 
 client.on('guildCreate', () => updatePresence());
 client.on('guildDelete', () => updatePresence());
 
+client.on('guildMemberAdd', async (member) => {
+  await autoroleJoin(member);
+  await welcomeJoin(member);
+});
+
+client.on('messageCreate', async (message) => {
+  await handleImageSubmission(message);
+});
+
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (interaction.isChatInputCommand()) {
+    const cmd = commands.get(interaction.commandName);
+    if (!cmd) return;
+    try {
+      await cmd.execute(interaction);
+    } catch (err) {
+      console.error(`Error in /${interaction.commandName}:`, err);
+      const msg = { content: '❌ An error occurred.', ephemeral: true };
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(msg).catch(() => {});
+      } else {
+        await interaction.reply(msg).catch(() => {});
+      }
+    }
+    return;
+  }
 
-  const cmd = commands.get(interaction.commandName);
-  if (!cmd) return;
-
-  try {
-    await cmd.execute(interaction);
-  } catch (err) {
-    console.error(`Error executing /${interaction.commandName}:`, err);
-    const msg = { content: 'An error occurred while running this command.', ephemeral: true };
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(msg).catch(() => {});
-    } else {
-      await interaction.reply(msg).catch(() => {});
+  if (interaction.isButton()) {
+    try {
+      if (interaction.customId === 'verify_button_click') return await handleVerifyButton(interaction);
+      if (interaction.customId.startsWith('verify_accept_')) return await handleVerifyAccept(interaction);
+      if (interaction.customId.startsWith('verify_decline_')) return await handleVerifyDecline(interaction);
+      if (interaction.customId === 'ticket_open') return await handleTicketOpen(interaction);
+      if (interaction.customId === 'ticket_close_btn') return await handleTicketCloseBtn(interaction);
+    } catch (err) {
+      console.error('Button handler error:', err);
+      await interaction.reply({ content: '❌ Something went wrong.', ephemeral: true }).catch(() => {});
     }
   }
 });
