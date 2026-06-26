@@ -8,6 +8,7 @@ const { command: welcomeCmd, execute: welcomeExec, handleMemberJoin: welcomeJoin
 const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJoin } = require('./autoroleCommand');
 const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require('./giveawayCommand');
 const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
+const { command: kingdomAlertCmd, execute: kingdomAlertExec } = require('./kingdomAlertCommand');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
@@ -40,6 +41,7 @@ const allCommands = [
   { data: giveawayCmd, execute: giveawayExec },
   { data: pointsCmd, execute: executePoints },
   { data: storeCommand, execute: executeStore },
+  { data: kingdomAlertCmd, execute: kingdomAlertExec },
 ];
 
 const commands = new Collection();
