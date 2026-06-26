@@ -72,6 +72,13 @@ db.exec(`
     cost INTEGER NOT NULL,
     role_id TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS auto_alert_config (
+    guild_id TEXT PRIMARY KEY,
+    target_channel_id TEXT NOT NULL,
+    role_id TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1
+  );
 `);
 
 function getVerificationConfig(guildId) {
@@ -186,6 +193,25 @@ function removeStoreItem(guildId, name) {
   db.prepare(`DELETE FROM store_items WHERE guild_id = ? AND LOWER(name) = LOWER(?)`).run(guildId, name);
 }
 
+function getAutoAlertConfig(guildId) {
+  return db.prepare(`SELECT * FROM auto_alert_config WHERE guild_id = ?`).get(guildId);
+}
+function getAllAutoAlertConfigs() {
+  return db.prepare(`SELECT * FROM auto_alert_config WHERE enabled = 1`).all();
+}
+function setAutoAlertConfig(guildId, fields) {
+  const keys = Object.keys(fields);
+  const placeholders = keys.map(() => '?').join(', ');
+  const setClauses = keys.map(k => `${k} = excluded.${k}`).join(', ');
+  db.prepare(
+    `INSERT INTO auto_alert_config (guild_id, ${keys.join(', ')}) VALUES (?, ${placeholders})
+     ON CONFLICT(guild_id) DO UPDATE SET ${setClauses}`
+  ).run(guildId, ...keys.map(k => fields[k]));
+}
+function disableAutoAlert(guildId) {
+  db.prepare(`UPDATE auto_alert_config SET enabled = 0 WHERE guild_id = ?`).run(guildId);
+}
+
 module.exports = {
   getVerificationConfig, setVerificationConfig, updateVerificationConfig,
   getTicketConfig, setTicketConfig, openTicket, closeTicket, getTicketByChannel,
@@ -194,4 +220,5 @@ module.exports = {
   createGiveaway, setGiveawayMessageId, getActiveGiveaways, getGiveawayByMessage, endGiveaway, getLatestGiveaway,
   getPoints, addPoints, deductPoints,
   getStoreItems, getStoreItem, addStoreItem, removeStoreItem,
+  getAutoAlertConfig, getAllAutoAlertConfigs, setAutoAlertConfig, disableAutoAlert,
 };

@@ -9,6 +9,7 @@ const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJ
 const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require('./giveawayCommand');
 const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
 const { command: kingdomAlertCmd, execute: kingdomAlertExec } = require('./kingdomAlertCommand');
+const { command: autoAlertCmd, execute: autoAlertExec, handleAutoAlert } = require('./autoAlertCommand');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
@@ -42,6 +43,7 @@ const allCommands = [
   { data: pointsCmd, execute: executePoints },
   { data: storeCommand, execute: executeStore },
   { data: kingdomAlertCmd, execute: kingdomAlertExec },
+  { data: autoAlertCmd, execute: autoAlertExec },
 ];
 
 const commands = new Collection();
@@ -89,6 +91,7 @@ client.on('guildMemberAdd', async (member) => {
 
 client.on('messageCreate', async (message) => {
   await handleImageSubmission(message);
+  await handleAutoAlert(message);
 });
 
 client.on('interactionCreate', async (interaction) => {
