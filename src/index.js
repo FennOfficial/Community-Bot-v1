@@ -10,6 +10,7 @@ const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require(
 const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
 const { command: kingdomAlertCmd, execute: kingdomAlertExec } = require('./kingdomAlertCommand');
 const { command: autoAlertCmd, execute: autoAlertExec, handleAutoAlert } = require('./autoAlertCommand');
+const { command: helpCmd, execute: helpExec } = require('./helpCommand');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
@@ -44,6 +45,7 @@ const allCommands = [
   { data: storeCommand, execute: executeStore },
   { data: kingdomAlertCmd, execute: kingdomAlertExec },
   { data: autoAlertCmd, execute: autoAlertExec },
+  { data: helpCmd, execute: helpExec },
 ];
 
 const commands = new Collection();

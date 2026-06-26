@@ -156,8 +156,13 @@ async function handleAutoAlert(message) {
       return;
     }
 
+    activePings.set(alertKey, null);
+
     const channel = await message.client.channels.fetch(channelId).catch(() => null);
-    if (!channel) return;
+    if (!channel) {
+      activePings.delete(alertKey);
+      return;
+    }
 
     const mention = roleId ? `<@&${roleId}>` : '@everyone';
     const pingMessage = `${mention} **(${kdNumber}) Kingdom Has Now Open** 🏰⚔️`;
