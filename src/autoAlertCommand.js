@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('./database');
-const { getWatches } = require('./kingdomWatchlist');
+const { getWatches, listWatchesForGuild } = require('./kingdomWatchlist');
 
 const SOURCE_CHANNEL_ID = '1492068518236258445';
 
@@ -29,6 +29,10 @@ const command = new SlashCommandBuilder()
   .addSubcommand(sub =>
     sub.setName('status')
       .setDescription('Check current auto-alert configuration')
+  )
+  .addSubcommand(sub =>
+    sub.setName('watchlist')
+      .setDescription('See all kingdoms currently being watched in this server')
   );
 
 async function execute(interaction) {
@@ -80,6 +84,26 @@ async function execute(interaction) {
         { name: 'Mention', value: config.role_id ? `<@&${config.role_id}>` : '@everyone', inline: true },
       );
 
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+
+  if (sub === 'watchlist') {
+    const watches = listWatchesForGuild(guildId);
+    if (watches.length === 0) {
+      return interaction.reply({
+        content: '📋 No kingdoms are being watched in this server. Use `/kingdom-alert kd:4125` to add one.',
+        ephemeral: true,
+      });
+    }
+    const embed = new EmbedBuilder()
+      .setTitle('📋 Kingdom Watch List')
+      .setColor(0x5865F2)
+      .setDescription(
+        watches.map(w =>
+          `• **KD ${w.kd}** → <#${w.channelId}> ${w.roleId ? `<@&${w.roleId}>` : '@everyone'}`
+        ).join('\n')
+      )
+      .setFooter({ text: 'Pings fire automatically when ROKSTATS announces the kingdom is open' });
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 }
