@@ -17,7 +17,7 @@ const CLIENT_ID = Buffer.from(TOKEN.split('.')[0], 'base64').toString('utf-8');
 http.createServer((req, res) => {
   res.writeHead(200);
   res.end('Community Bot is running.');
-}).listen(5001, '0.0.0.0');
+}).listen(3000, '0.0.0.0');
 
 const SELF_URL = process.env.COMMUNITY_BOT_URL || '';
 if (SELF_URL) {
