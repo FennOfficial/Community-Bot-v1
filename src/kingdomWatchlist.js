@@ -14,6 +14,18 @@ function removeWatch(kdNum, guildId) {
   return removed;
 }
 
+function removeAllWatches(guildId) {
+  let count = 0;
+  for (const [key, guilds] of watchlist) {
+    if (guilds.has(guildId)) {
+      guilds.delete(guildId);
+      count++;
+      if (guilds.size === 0) watchlist.delete(key);
+    }
+  }
+  return count;
+}
+
 function getWatches(kdNum) {
   const map = watchlist.get(String(kdNum));
   if (!map) return [];

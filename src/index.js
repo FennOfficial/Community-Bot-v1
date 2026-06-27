@@ -9,7 +9,7 @@ const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJ
 const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require('./giveawayCommand');
 const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
 const { command: kingdomAlertCmd, execute: kingdomAlertExec } = require('./kingdomAlertCommand');
-const { command: autoAlertCmd, execute: autoAlertExec, handleAutoAlert } = require('./autoAlertCommand');
+const { handleAutoAlert } = require('./autoAlertCommand');
 const { command: helpCmd, execute: helpExec } = require('./helpCommand');
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -44,7 +44,6 @@ const allCommands = [
   { data: pointsCmd, execute: executePoints },
   { data: storeCommand, execute: executeStore },
   { data: kingdomAlertCmd, execute: kingdomAlertExec },
-  { data: autoAlertCmd, execute: autoAlertExec },
   { data: helpCmd, execute: helpExec },
 ];
 
@@ -71,7 +70,7 @@ function updatePresence() {
   const count = client.guilds.cache.size;
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: `${count} server${count !== 1 ? 's' : ''} | /ticket`, type: ActivityType.Watching }],
+    activities: [{ name: `${count} server${count !== 1 ? 's' : ''} | /help`, type: ActivityType.Watching }],
   });
 }
 

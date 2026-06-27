@@ -57,17 +57,11 @@ const sections = [
   {
     name: '🏰 Kingdom Alerts',
     value: [
-      '`/kingdom-alert kd:<number>` — Watch for a KD to open; pings automatically when ROKSTATS announces it',
-      '`/kingdom-alert kd:<number> remove:True` — Cancel a kingdom watch',
-    ].join('\n'),
-  },
-  {
-    name: '📡 Auto-Alert (Global)',
-    value: [
-      '`/auto-alert setup` — Configure auto-pings for every kingdom opening',
-      '`/auto-alert disable` — Turn off auto-alerts',
-      '`/auto-alert status` — Check current auto-alert config',
-      '`/auto-alert watchlist` — See all kingdoms being watched',
+      '`/kingdom-alert add kd:<number>` — Watch for a KD to open; auto-pings when ROKSTATS announces it',
+      '`/kingdom-alert add kd:<number> channel:#ch ping:@role` — Watch with a specific channel & role',
+      '`/kingdom-alert list` — See all active kingdom watches',
+      '`/kingdom-alert disable kd:<number>` — Stop watching a specific kingdom',
+      '`/kingdom-alert disable` — Disable all kingdom watches',
     ].join('\n'),
   },
 ];
@@ -76,7 +70,7 @@ async function execute(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('⚔️ AG Tools — Command List')
     .setColor(0xFFD700)
-    .setDescription('Here are all available commands. Admin-only commands require the **Administrator** permission.')
+    .setDescription('All available commands. Admin commands require the **Administrator** permission.')
     .addFields(sections)
     .setFooter({ text: 'Ascendant Guardians • AG Tools#1256' })
     .setTimestamp();
