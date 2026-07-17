@@ -79,6 +79,23 @@ db.exec(`
     role_id TEXT,
     enabled INTEGER NOT NULL DEFAULT 1
   );
+
+  CREATE TABLE IF NOT EXISTS kd_alert_watches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    kd_number TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    custom_message TEXT,
+    spam INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS kd_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kd_number TEXT NOT NULL,
+    opened_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
 `);
 
 function getVerificationConfig(guildId) {

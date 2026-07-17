@@ -54,6 +54,15 @@ const sections = [
       '`/store buy` — Buy an item with points',
     ].join('\n'),
   },
+  {
+    name: '🏰 Kingdom Alerts',
+    value: [
+      '`/kingdom-alert set kd:<number> channel:#ch` — Watch for a KD to open; auto-sends alert when ROKSTATS announces it',
+      '`/kingdom-alert set kd:<number> channel:#ch message:<text> spam:true` — Custom message + 5-ping spam mode',
+      '`/kingdom-alert list` — See all active watches in this server',
+      '`/kingdom-alert delete kd:<number>` — Remove a specific watch',
+    ].join('\n'),
+  },
 ];
 
 async function execute(interaction) {

@@ -8,6 +8,8 @@ const { command: welcomeCmd, execute: welcomeExec, handleMemberJoin: welcomeJoin
 const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJoin } = require('./autoroleCommand');
 const { command: giveawayCmd, execute: giveawayExec, checkGiveaways } = require('./giveawayCommand');
 const { command: pointsCmd, storeCommand, executePoints, executeStore } = require('./pointsCommand');
+const { command: kingdomAlertCmd, execute: kingdomAlertExec } = require('./kingdomAlertCommand');
+const { handleKingdomDetector } = require('./kingdomDetector');
 const { command: helpCmd, execute: helpExec } = require('./helpCommand');
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -41,6 +43,7 @@ const allCommands = [
   { data: giveawayCmd, execute: giveawayExec },
   { data: pointsCmd, execute: executePoints },
   { data: storeCommand, execute: executeStore },
+  { data: kingdomAlertCmd, execute: kingdomAlertExec },
   { data: helpCmd, execute: helpExec },
 ];
 
@@ -89,6 +92,7 @@ client.on('guildMemberAdd', async (member) => {
 
 client.on('messageCreate', async (message) => {
   await handleImageSubmission(message);
+  await handleKingdomDetector(message);
 });
 
 client.on('interactionCreate', async (interaction) => {
