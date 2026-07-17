@@ -54,16 +54,6 @@ const sections = [
       '`/store buy` — Buy an item with points',
     ].join('\n'),
   },
-  {
-    name: '🏰 Kingdom Alerts',
-    value: [
-      '`/kingdom-alert add kd:<number>` — Watch for a KD to open; auto-pings when ROKSTATS announces it',
-      '`/kingdom-alert add kd:<number> channel:#ch ping:@role` — Watch with a specific channel & role',
-      '`/kingdom-alert list` — See all active kingdom watches',
-      '`/kingdom-alert disable kd:<number>` — Stop watching a specific kingdom',
-      '`/kingdom-alert disable` — Disable all kingdom watches',
-    ].join('\n'),
-  },
 ];
 
 async function execute(interaction) {
