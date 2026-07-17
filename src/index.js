@@ -2,7 +2,13 @@ const { Client, GatewayIntentBits, REST, Routes, Collection, ActivityType } = re
 const http = require('http');
 const https = require('https');
 
-const { command: verifyCmd, execute: verifyExec, handleVerifyButton, handleVerifyAccept, handleVerifyDecline, handleImageSubmission } = require('./verificationCommand');
+const {
+  command: verifyCmd, execute: verifyExec,
+  handleVerifyButton, handleVerifyAccept, handleVerifyDecline,
+  handleImageSubmission,
+  handleImgVerifyAdd, handleImgVerifyDelete,
+  handleImgVerifyAddModal, handleImgVerifyDeleteModal,
+} = require('./verificationCommand');
 const { command: ticketCmd, execute: ticketExec, handleTicketOpen, handleTicketCloseBtn } = require('./ticketCommand');
 const { command: welcomeCmd, execute: welcomeExec, handleMemberJoin: welcomeJoin } = require('./welcomeCommand');
 const { command: autoroleCmd, execute: autoroleExec, handleMemberJoin: autoroleJoin } = require('./autoroleCommand');
@@ -118,10 +124,22 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'verify_button_click') return await handleVerifyButton(interaction);
       if (interaction.customId.startsWith('verify_accept_')) return await handleVerifyAccept(interaction);
       if (interaction.customId.startsWith('verify_decline_')) return await handleVerifyDecline(interaction);
+      if (interaction.customId.startsWith('imgv_add_')) return await handleImgVerifyAdd(interaction);
+      if (interaction.customId.startsWith('imgv_del_')) return await handleImgVerifyDelete(interaction);
       if (interaction.customId === 'ticket_open') return await handleTicketOpen(interaction);
       if (interaction.customId === 'ticket_close_btn') return await handleTicketCloseBtn(interaction);
     } catch (err) {
       console.error('Button handler error:', err);
+      await interaction.reply({ content: '❌ Something went wrong.', ephemeral: true }).catch(() => {});
+    }
+  }
+
+  if (interaction.isModalSubmit()) {
+    try {
+      if (interaction.customId.startsWith('imgv_add_modal_')) return await handleImgVerifyAddModal(interaction);
+      if (interaction.customId.startsWith('imgv_del_modal_')) return await handleImgVerifyDeleteModal(interaction);
+    } catch (err) {
+      console.error('Modal handler error:', err);
       await interaction.reply({ content: '❌ Something went wrong.', ephemeral: true }).catch(() => {});
     }
   }
