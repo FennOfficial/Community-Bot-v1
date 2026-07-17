@@ -4,6 +4,11 @@ const {
   ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const https = require('https');
+const http = require('http');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const Tesseract = require('tesseract.js');
 const db = require('./database');
 
 // ─────────────────────────────────────────────
@@ -70,54 +75,75 @@ function buildAllianceMenuRow(guildId) {
 }
 
 // ─────────────────────────────────────────────
-// OCR via OCR.space (free tier, no key needed)
+// OCR via tesseract.js (offline, no API limits)
 // ─────────────────────────────────────────────
-function fetchOCR(imageUrl) {
-  return new Promise((resolve) => {
-    const params = new URLSearchParams({
-      apikey: process.env.OCR_SPACE_KEY || 'helloworld',
-      url: imageUrl,
-      language: 'eng',
-      isOverlayRequired: 'false',
-      detectOrientation: 'true',
-      scale: 'true',
-    });
-    const options = {
-      hostname: 'api.ocr.space',
-      path: `/parse/imageurl?${params.toString()}`,
-      method: 'GET',
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (json.IsErroredOnProcessing) return resolve(null);
-          resolve(json.ParsedResults?.[0]?.ParsedText ?? null);
-        } catch {
-          resolve(null);
-        }
-      });
-    });
-    req.on('error', () => resolve(null));
-    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
-    req.end();
+function downloadImage(url) {
+  return new Promise((resolve, reject) => {
+    const tmpFile = path.join(os.tmpdir(), `rok_verify_${Date.now()}.jpg`);
+    const file = fs.createWriteStream(tmpFile);
+    const protocol = url.startsWith('https') ? https : http;
+    protocol.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        file.close();
+        fs.unlink(tmpFile, () => {});
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      res.pipe(file);
+      file.on('finish', () => { file.close(); resolve(tmpFile); });
+    }).on('error', (e) => { fs.unlink(tmpFile, () => {}); reject(e); });
   });
 }
 
-// Extract all [TAG] + following name matches from raw OCR text
-function extractAllianceMatches(text) {
-  if (!text) return [];
-  const results = [];
-  const pattern = /\[([A-Z0-9]{1,5})\]\s*([^\n\r\[]{1,40})/gi;
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    const tag = match[1].trim().toUpperCase();
-    const name = match[2].trim().replace(/[^\w\s\-\.]/g, '').trim();
-    if (tag && name) results.push({ tag, name });
+async function performOCR(imageUrl) {
+  let tmpFile = null;
+  try {
+    tmpFile = await downloadImage(imageUrl);
+    const { data: { text } } = await Tesseract.recognize(tmpFile, 'eng', { logger: () => {} });
+    return text || null;
+  } catch (e) {
+    console.error('[OCR] Error:', e.message);
+    return null;
+  } finally {
+    if (tmpFile) fs.unlink(tmpFile, () => {});
   }
-  return results;
+}
+
+// Parse ROK Governor Profile OCR output.
+// Layout: "Governor(ID: XXXXX)" → next line = player name
+//         "[TAG]Alliance Name"  → alliance section
+// Tesseract commonly garbles ']' as 'I', 'l', '|', ')' — handled below.
+function parseROKProfile(text) {
+  if (!text) return null;
+
+  const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+  let playerName = null;
+  let allianceTag = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Governor ID anchor → player name is the very next line
+    // OCR garbles "Governor(ID:" as "Govelnor(D:", "Governor(D:", etc.
+    if (/Gov[a-z]*[io][a-z]*\s*[\(\[]?\s*[ID]/i.test(line) && i + 1 < lines.length) {
+      const candidate = lines[i + 1].trim();
+      if (
+        candidate.length > 1 &&
+        !/^[\d,\.]+$/.test(candidate) &&
+        !/^(alliance|kill|power|civilization|acclaim)/i.test(candidate)
+      ) {
+        playerName = candidate;
+      }
+    }
+
+    // Alliance tag: [TAG] — closing ']' often OCR'd as 'I', 'l', '|', ')', '1'
+    // Matches: [VFoV]  [AG]  [KOC]  etc. even with noisy closing char
+    const tagMatch = line.match(/\[([A-Za-z0-9]{1,5})[\]\|Il\)1]/);
+    if (tagMatch && !allianceTag) {
+      allianceTag = tagMatch[1].toUpperCase();
+    }
+  }
+
+  return { playerName, allianceTag };
 }
 
 // ─────────────────────────────────────────────
@@ -430,7 +456,7 @@ async function handleImageSubmission(message) {
   }).catch(() => null);
 
   try {
-    const ocrText = await fetchOCR(imageUrl);
+    const ocrText = await performOCR(imageUrl);
 
     if (!ocrText) {
       await statusMsg?.delete().catch(() => {});
@@ -441,20 +467,14 @@ async function handleImageSubmission(message) {
       return;
     }
 
-    const matches = extractAllianceMatches(ocrText);
+    const parsed = parseROKProfile(ocrText);
     const alliances = db.getImageVerifyAlliances(message.guildId);
 
-    let matched = null;
-    let playerName = null;
+    const matched = parsed?.allianceTag
+      ? alliances.find(a => a.tag.toUpperCase() === parsed.allianceTag.toUpperCase())
+      : null;
 
-    for (const { tag, name } of matches) {
-      const found = alliances.find(a => a.tag.toUpperCase() === tag.toUpperCase());
-      if (found) {
-        matched = found;
-        playerName = name;
-        break;
-      }
-    }
+    const playerName = parsed?.playerName || message.author.username;
 
     await statusMsg?.delete().catch(() => {});
 
@@ -463,10 +483,14 @@ async function handleImageSubmission(message) {
       await message.author.send(
         `❌ **Verification Failed** in **${guildName}**\n\n` +
         `Your alliance was not found in our registered list.\n` +
+        `**Detected tag:** \`[${parsed?.allianceTag || 'none'}]\`\n` +
         `**Registered alliances:** ${knownTags}\n\n` +
         `If you believe this is a mistake, please contact an admin.`
       ).catch(() => {});
-      await logEvent(message.client, config, '❌ Alliance Not Matched', message.author, null, ocrText.slice(0, 200), `Detected tags: ${matches.map(m => m.tag).join(', ') || 'none'}`);
+      await logEvent(message.client, config, '❌ Alliance Not Matched', message.author, null,
+        ocrText.slice(0, 300),
+        `Detected tag: [${parsed?.allianceTag || 'none'}] | Name: ${parsed?.playerName || 'none'}`
+      );
       return;
     }
 
@@ -496,7 +520,10 @@ async function handleImageSubmission(message) {
     ).catch(() => {});
 
     // ── Log ───────────────────────────────────────
-    await logEvent(message.client, config, '✅ Verified', message.author, matched, ocrText.slice(0, 200), `Nickname set to: ${newNick}`);
+    await logEvent(message.client, config, '✅ Verified', message.author, matched,
+      ocrText.slice(0, 300),
+      `In-game name: ${playerName} | Nickname set to: ${newNick}`
+    );
 
   } catch (err) {
     console.error('[ImageVerify] Error during auto-verification:', err);
