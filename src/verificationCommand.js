@@ -184,17 +184,18 @@ async function execute(interaction) {
 
     await verifyChannel.send({ embeds: [panelEmbed] });
 
-    // Send alliance management menu (editable later) in current channel
+    // Send alliance management menu as the slash command reply (single message, not duplicate)
     const menuEmbed = buildAllianceMenuEmbed(guildId);
     const menuRow = buildAllianceMenuRow(guildId);
-    const menuMsg = await interaction.channel.send({ embeds: [menuEmbed], components: [menuRow] });
 
-    db.updateImageVerifyConfigMenu(guildId, interaction.channelId, menuMsg.id);
-
-    return interaction.reply({
-      content: `✅ Auto-verification set up!\n• Members submit screenshots in ${verifyChannel}\n• Verified role: ${role}${logChannel ? `\n• Log channel: ${logChannel}` : ''}\n\nUse the menu above to manage your registered alliances.`,
-      ephemeral: true,
+    await interaction.reply({
+      content: `✅ Auto-verification set up!\n• Members submit screenshots in ${verifyChannel}\n• Verified role: ${role}${logChannel ? `\n• Log channel: ${logChannel}` : ''}\n\nManage alliances below:`,
+      embeds: [menuEmbed],
+      components: [menuRow],
     });
+
+    const menuMsg = await interaction.fetchReply();
+    db.updateImageVerifyConfigMenu(guildId, interaction.channelId, menuMsg.id);
   }
 
   // ── Disable ──────────────────────────────────
@@ -287,10 +288,10 @@ async function handleImgVerifyAdd(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('alliance_role')
-        .setLabel('Alliance Role ID (optional — leave blank to skip)')
+        .setLabel('Alliance Role ID (optional)')
         .setStyle(TextInputStyle.Short)
         .setRequired(false)
-        .setPlaceholder('Right-click the role → Copy ID')
+        .setPlaceholder('Right-click role → Copy ID, or leave blank')
     ),
   );
 
