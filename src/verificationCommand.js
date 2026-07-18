@@ -77,31 +77,53 @@ function buildAllianceMenuRow(guildId) {
 // ─────────────────────────────────────────────
 // OCR via tesseract.js (offline, no API limits)
 // ─────────────────────────────────────────────
-function downloadImage(url) {
+function downloadImage(url, redirects = 0) {
   return new Promise((resolve, reject) => {
-    const tmpFile = path.join(os.tmpdir(), `rok_verify_${Date.now()}.jpg`);
+    if (redirects > 5) return reject(new Error('Too many redirects'));
+
+    const ext = url.split('?')[0].match(/\.(png|jpg|jpeg|webp|gif)$/i)?.[1] || 'jpg';
+    const tmpFile = path.join(os.tmpdir(), `rok_verify_${Date.now()}.${ext}`);
     const file = fs.createWriteStream(tmpFile);
     const protocol = url.startsWith('https') ? https : http;
-    protocol.get(url, (res) => {
+
+    const req = protocol.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+    }, (res) => {
+      // Follow HTTP redirects
+      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+        file.close();
+        fs.unlink(tmpFile, () => {});
+        return downloadImage(res.headers.location, redirects + 1).then(resolve).catch(reject);
+      }
       if (res.statusCode !== 200) {
         file.close();
         fs.unlink(tmpFile, () => {});
-        return reject(new Error(`HTTP ${res.statusCode}`));
+        return reject(new Error(`HTTP ${res.statusCode} — ${url.slice(0, 80)}`));
       }
       res.pipe(file);
       file.on('finish', () => { file.close(); resolve(tmpFile); });
-    }).on('error', (e) => { fs.unlink(tmpFile, () => {}); reject(e); });
+      file.on('error', (e) => { fs.unlink(tmpFile, () => {}); reject(e); });
+    });
+
+    req.on('error', (e) => { fs.unlink(tmpFile, () => {}); reject(e); });
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error('Download timeout')); });
   });
 }
 
 async function performOCR(imageUrl) {
   let tmpFile = null;
   try {
+    console.log(`[OCR] Downloading: ${imageUrl.slice(0, 100)}`);
     tmpFile = await downloadImage(imageUrl);
+    console.log(`[OCR] Running tesseract on: ${tmpFile}`);
     const { data: { text } } = await Tesseract.recognize(tmpFile, 'eng', { logger: () => {} });
+    console.log(`[OCR] Extracted ${text?.length ?? 0} chars`);
     return text || null;
   } catch (e) {
-    console.error('[OCR] Error:', e.message);
+    console.error(`[OCR] FAILED — ${e.message}`);
     return null;
   } finally {
     if (tmpFile) fs.unlink(tmpFile, () => {});
