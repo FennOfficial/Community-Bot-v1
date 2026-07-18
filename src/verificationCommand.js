@@ -109,41 +109,60 @@ async function performOCR(imageUrl) {
 }
 
 // Parse ROK Governor Profile OCR output.
-// Layout: "Governor(ID: XXXXX)" → next line = player name
-//         "[TAG]Alliance Name"  → alliance section
-// Tesseract commonly garbles ']' as 'I', 'l', '|', ')' — handled below.
+// Based on the Governor Profile layout:
+//   Governor(ID: 84156168)
+//   Shagie X Lxae              ← player name (line right after)
+//   Alliance
+//   [VFoV]V For Vendetta       ← [TAG]Alliance Name
+//
+// Tesseract commonly garbles ']' as 'I', 'l', '|', ')' — fallback handles this.
 function parseROKProfile(text) {
   if (!text) return null;
 
-  const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+  // ── Governor ID ──────────────────────────────
+  const governorID = text.match(/Governor\s*\(?\s*ID[:\s]*([0-9]+)\)?/i)?.[1] || null;
+
+  // ── Governor (player) name ────────────────────
+  // Anchored to the closing ')' of the Governor(ID:...) line,
+  // then takes the very next non-empty line as the name.
   let playerName = null;
-  let allianceTag = null;
-
+  const lines = text.split(/[\r\n]+/);
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Governor ID anchor → player name is the very next line
-    // OCR garbles "Governor(ID:" as "Govelnor(D:", "Governor(D:", etc.
-    if (/Gov[a-z]*[io][a-z]*\s*[\(\[]?\s*[ID]/i.test(line) && i + 1 < lines.length) {
-      const candidate = lines[i + 1].trim();
-      if (
-        candidate.length > 1 &&
-        !/^[\d,\.]+$/.test(candidate) &&
-        !/^(alliance|kill|power|civilization|acclaim)/i.test(candidate)
-      ) {
-        playerName = candidate;
+    if (/Governor\s*\(?\s*ID/i.test(lines[i])) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const candidate = lines[j].trim();
+        if (
+          candidate.length > 1 &&
+          !/^[\d,\.]+$/.test(candidate) &&
+          !/^(alliance|kill|power|civilization|acclaim)/i.test(candidate)
+        ) {
+          // Strip common OCR noise chars and trailing edit/copy icons
+          playerName = candidate.replace(/[✦◆○●✎✏⊙☆★]/g, '').trim();
+          break;
+        }
       }
-    }
-
-    // Alliance tag: [TAG] — closing ']' often OCR'd as 'I', 'l', '|', ')', '1'
-    // Matches: [VFoV]  [AG]  [KOC]  etc. even with noisy closing char
-    const tagMatch = line.match(/\[([A-Za-z0-9]{1,5})[\]\|Il\)1]/);
-    if (tagMatch && !allianceTag) {
-      allianceTag = tagMatch[1].toUpperCase();
+      break;
     }
   }
 
-  return { playerName, allianceTag };
+  // ── Alliance tag & name ───────────────────────
+  // First try clean regex — proper closing bracket
+  let allianceTag = null;
+  let allianceName = null;
+
+  const cleanMatch = text.match(/\[([A-Za-z0-9]{1,5})\]\s*(.{1,60})/);
+  if (cleanMatch) {
+    allianceTag = cleanMatch[1].toUpperCase();
+    allianceName = cleanMatch[2].split(/\s{2,}|\t/)[0].trim(); // stop at big whitespace (table columns)
+  } else {
+    // Fallback: tesseract often reads ']' as 'I', 'l', '|', ')', '1'
+    const noisyMatch = text.match(/\[([A-Za-z0-9]{1,5})[\|Il\)1]/);
+    if (noisyMatch) {
+      allianceTag = noisyMatch[1].toUpperCase();
+    }
+  }
+
+  return { governorID, playerName, allianceTag, allianceName };
 }
 
 // ─────────────────────────────────────────────
