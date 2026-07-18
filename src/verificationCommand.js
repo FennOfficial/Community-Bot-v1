@@ -579,9 +579,36 @@ async function logEvent(client, config, title, user, alliance, rawText, notes) {
   }
 }
 
+// ─────────────────────────────────────────────
+// /verify-manage command
+// ─────────────────────────────────────────────
+const manageCommand = new SlashCommandBuilder()
+  .setName('verify-manage')
+  .setDescription('Reopen the alliance management menu')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+async function executeManage(interaction) {
+  const config = db.getImageVerifyConfig(interaction.guildId);
+  if (!config) {
+    return interaction.reply({
+      content: '⚠️ Image verification is not set up yet. Use `/verify-setup image` first.',
+      ephemeral: true,
+    });
+  }
+
+  const embed = buildAllianceMenuEmbed(interaction.guildId);
+  const row = buildAllianceMenuRow(interaction.guildId);
+
+  await interaction.reply({ embeds: [embed], components: [row] });
+  const msg = await interaction.fetchReply();
+  db.updateImageVerifyConfigMenu(interaction.guildId, interaction.channelId, msg.id);
+}
+
 module.exports = {
   command,
   execute,
+  manageCommand,
+  executeManage,
   handleVerifyButton,
   handleVerifyAccept,
   handleVerifyDecline,

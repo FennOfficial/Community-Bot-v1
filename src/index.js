@@ -4,6 +4,7 @@ const https = require('https');
 
 const {
   command: verifyCmd, execute: verifyExec,
+  manageCommand: verifyManageCmd, executeManage: verifyManageExec,
   handleVerifyButton, handleVerifyAccept, handleVerifyDecline,
   handleImageSubmission,
   handleImgVerifyAdd, handleImgVerifyDelete,
@@ -43,6 +44,7 @@ const client = new Client({
 
 const allCommands = [
   { data: verifyCmd, execute: verifyExec },
+  { data: verifyManageCmd, execute: verifyManageExec },
   { data: ticketCmd, execute: ticketExec },
   { data: welcomeCmd, execute: welcomeExec },
   { data: autoroleCmd, execute: autoroleExec },

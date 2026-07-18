@@ -55,6 +55,14 @@ const sections = [
     ].join('\n'),
   },
   {
+    name: '🔐 Verification',
+    value: [
+      '`/verify-setup button channel: role:` — One-click button verification',
+      '`/verify-setup image channel: role: log-channel:` — Auto-verify by reading ROK profile screenshot',
+      '`/verify-manage` — Reopen the alliance management menu (`[Add]` / `[Delete]`)',
+    ].join('\n'),
+  },
+  {
     name: '🏰 Kingdom Alerts',
     value: [
       '`/kingdom-alert set kd:<number> channel:#ch` — Watch for a KD to open; auto-sends alert when ROKSTATS announces it',
